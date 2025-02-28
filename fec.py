@@ -11,7 +11,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-pathofimage = "FinalImage.png"           # original template
+pathofimage = "Certi.png"           # original template
 updateimage = "Imageupdate"         # base name for updated images
 SMTP_PORT = 587  # TLS port
 SMTP_SERVER = "smtp.gmail.com"  # For Gmail
@@ -71,12 +71,9 @@ for i in range(len(detection_data["text"])):
     elif "participation" in text:
         participation_text_y = y_center
         print(f"Found 'the' at y-center: {y_center} (text: {text})")
-    elif "course" in text:
-        project_text_y = y_center
-        print(f"Found 'course' at y-center: {y_center} (text: {text})")
 
-if award_text_y is None or participation_text_y is None or project_text_y is None:
-    print("Could not find reference texts 'to' and/or 'upon' in OCR data.")
+if award_text_y is None or participation_text_y is None:
+    print("Could not find reference texts 'certificate' and/or 'participation' in OCR data.")
 
 # Detect horizontal lines using Canny edge detection + HoughLinesP
 edges = cv2.Canny(binary, 50, 150, apertureSize=3)
@@ -86,10 +83,6 @@ print("Raw detected lines:", lines)
 underline_coords = []
 if award_text_y and participation_text_y:
     y_min, y_max = award_text_y + 10, participation_text_y - 10
-    print(f"Looking for lines between y: {y_min} and {y_max}")
-    underline_coords = find_coords(y_min, y_max, lines, underline_coords)
-if project_text_y and participation_text_y:
-    y_min, y_max = participation_text_y, project_text_y - 10
     print(f"Looking for lines between y: {y_min} and {y_max}")
     underline_coords = find_coords(y_min, y_max, lines, underline_coords)
 
@@ -109,22 +102,22 @@ df = pd.DataFrame(data[1:], columns=data[0])
 # ----- EMAIL & DRAWING LOOP -----
 for index, row in df.iterrows():
     email = row['Email Address']
-    Name1 = row['Student name 1']
-    Name2 = row['Student name 2']
-    Name3 = row['Student name 3']
-    Name4 = row['Student name 4']
+    Name1 = row['Student name 1'].upper()
+    Name2 = row['Student name 2'].upper()
+    Name3 = row['Student name 3'].upper()
+    Name4 = row['Student name 4'].upper()
     Project = row['Project Name']
-    print(Name4)
+    # print(Name4)
     count = 3
     Names = [Name1, Name2, Name3] 
-    if Name4.isalpha():
+    if Name4.isalpha() or Name4 is not None or Name4 != "":
         count = 4
         Names.append(Name4)
-
+    print(Names)
     # 1) Create a FRESH copy of the original PIL image for each iteration
     image_pil = Image.open(pathofimage).convert("RGB")
     draw = ImageDraw.Draw(image_pil)
-    font = ImageFont.truetype("arial.ttf", 40)
+    font = ImageFont.truetype("arial.ttf", 30)
 
     # 4) Prepare and send email
     msg = EmailMessage()
@@ -137,8 +130,8 @@ for index, row in df.iterrows():
     if underline_coords:
         # Use the first underline for student name and the second for project name.
         x1, y1, x2, y2 = underline_coords[0]
-        text_x = x1
-        text_y = y1 - 40 
+        text_x = x1 - 140
+        text_y = y1 - 70
         rect_padding = 5
         # Erase area with white rectangle
         draw.rectangle(
@@ -147,19 +140,6 @@ for index, row in df.iterrows():
                 y1 - rect_padding,
                 x2 + rect_padding,
                 y2 + rect_padding
-            ],
-            fill="white"
-        )
-        xp1, yp1, xp2, yp2 = underline_coords[1]
-        text_xp = x_center
-        text_yp = yp1 - 10
-        rect_padding = 5
-        draw.rectangle(
-            [
-                xp1 - rect_padding,
-                yp1 - rect_padding,
-                xp2 + rect_padding,
-                yp2 + rect_padding
             ],
             fill="white"
         )
@@ -180,7 +160,7 @@ for index, row in df.iterrows():
 
             # For demonstration, using Name1 for all iterations; update as necessary.
             draw.text((text_x, text_y), Names[i-1], fill="black", font=font)
-            draw.text((text_xp, text_yp), Project, fill="black", font=font)
+            # draw.text((text_xp, text_yp), Project, fill="black", font=font)
 
             # Save updated image under a unique filename
             image_pil.save(Ima)
@@ -202,7 +182,7 @@ for index, row in df.iterrows():
             server.send_message(msg)
             print(f"Email sent successfully to {email}") 
     else:
-        print("No underline coordinates available; cannot place text for", Name3)
+        print("No underline coordinates available;" )
 
 # ----- OPTIONAL: SHOW DETECTED UNDERLINES -----
 for (x1, y1, x2, y2) in underline_coords:
