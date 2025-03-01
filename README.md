@@ -1,8 +1,3 @@
-Here's an enhanced version of your README text with proper formatting and improved clarity:
-
-
----
-
 E-Certification Automation
 
 Introduction
