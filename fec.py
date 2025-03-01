@@ -5,13 +5,13 @@ import re
 import cv2
 import os
 import smtplib
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageTk
 from email.message import EmailMessage
 import numpy as np
 import matplotlib.pyplot as plt
 
 pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-pathofimage = "Certi.png"           # original template
+pathofimage = "Certify.png"           # original template
 updateimage = "Imageupdate"         # base name for updated images
 SMTP_PORT = 587  # TLS port
 SMTP_SERVER = "smtp.gmail.com"  # For Gmail
@@ -28,14 +28,15 @@ def extract_sheet_id(sheet_url):
 SHEET_ID = extract_sheet_id(formlink)
 
 def find_coords(y_min, y_max, lines, underline_coords):
-    if lines is not None:
-        for line in lines:
+    if lines is not None :
+        i = 0
+        while( len(underline_coords) == 0):
             # Support both flat and nested formats
-            if isinstance(line, (list, np.ndarray)):
-                if len(line) == 4:
-                    x1, y1, x2, y2 = line
-                elif len(line) > 0 and len(line[0]) == 4:
-                    x1, y1, x2, y2 = line[0]
+            if isinstance(lines[i], (list, np.ndarray)):
+                if len(lines[i]) == 4:
+                    x1, y1, x2, y2 = lines[i]
+                elif len(lines[i]) > 0 and len(lines[i][0]) == 4:
+                    x1, y1, x2, y2 = lines[i][0]
                 else:
                     continue
 
@@ -44,7 +45,36 @@ def find_coords(y_min, y_max, lines, underline_coords):
                 # Check if both endpoints fall within the window
                 if y_min <= y1 <= y_max and y_min <= y2 <= y_max:
                     underline_coords.append((x1, y1, x2, y2))
+            i = i +1
     return underline_coords
+def addbg(updated, j):
+    # Open the transparent overlay image (reference size)
+    overlay = Image.open(updated).convert("RGBA")
+
+    # Open the background image
+    background = Image.open("image.png").convert("RGBA")
+
+    # Resize background to match the overlay's size
+    background = background.resize(overlay.size)
+
+    # Increase brightness (adjust factor as needed)
+
+    # Adjust transparency of the background
+    alpha_value = 175  # Range: 0 (fully transparent) to 255 (fully opaque)
+    overlay.putalpha(alpha_value)
+
+    # Blend the transparent brightened background with the overlay
+    combined = Image.alpha_composite(Image.new("RGBA", overlay.size, (0, 0, 0, 0)), background)
+    combined = Image.alpha_composite(combined, overlay)
+
+    # enhancer = ImageEnhance.Brightness(combined)
+    # combined= enhancer.enhance(0.5)  # Increase brightness (1.0 = original, >1.0 = brighter)
+    # Show or save the result
+    # combined.show()  # Display the final image
+    output=f"output{j}.png"
+    combined.save(output)  # Save the image
+    return output
+
 
 # ----- LOAD & PREPARE THE ORIGINAL IMAGE FOR LINE DETECTION -----
 image = cv2.imread(pathofimage)
@@ -59,6 +89,7 @@ binary = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.TH
 custom_config = r'--oem 3 --psm 6'
 detection_data = pytesseract.image_to_data(binary, config=custom_config, output_type=pytesseract.Output.DICT)
 x_center=0
+y_center =0
 # Identify key text Y-coordinates (for "to" and "upon")
 award_text_y, participation_text_y, project_text_y = None, None, None
 for i in range(len(detection_data["text"])):
@@ -68,11 +99,15 @@ for i in range(len(detection_data["text"])):
     if "certificate" in text:
         award_text_y = y_center
         print(f"Found 'to' at y-center: {y_center} (text: {text})")
-    elif "participation" in text:
+    elif "position" in text:
         participation_text_y = y_center
         print(f"Found 'the' at y-center: {y_center} (text: {text})")
+    # elif "prinicpal" in text:  # replaced "upon" with "course"
+    #     project_text_y = y_center
+    #     print(f"Found 'course' at y-center: {y_center} (text: {text})")
 
-if award_text_y is None or participation_text_y is None:
+if award_text_y is None or participation_text_y is None: 
+# or project_text_y is None:
     print("Could not find reference texts 'certificate' and/or 'participation' in OCR data.")
 
 # Detect horizontal lines using Canny edge detection + HoughLinesP
@@ -85,8 +120,14 @@ if award_text_y and participation_text_y:
     y_min, y_max = award_text_y + 10, participation_text_y - 10
     print(f"Looking for lines between y: {y_min} and {y_max}")
     underline_coords = find_coords(y_min, y_max, lines, underline_coords)
-
-print("Filtered underline coordinates:", underline_coords)
+underlines = underline_coords[:]
+del underline_coords[:]
+if participation_text_y :
+    y_min, y_max = participation_text_y -10 , participation_text_y + 100
+    print(f"Looking for lines between y: {y_min} and {y_max}")
+    underline_coords = find_coords(y_min, y_max, lines, underline_coords)
+underlines.extend(underline_coords)
+print("Filtered underline coordinates:", underlines)
 
 # ----- FETCH DATA FROM GOOGLE SHEET -----
 try:
@@ -117,7 +158,7 @@ for index, row in df.iterrows():
     # 1) Create a FRESH copy of the original PIL image for each iteration
     image_pil = Image.open(pathofimage).convert("RGB")
     draw = ImageDraw.Draw(image_pil)
-    font = ImageFont.truetype("arial.ttf", 30)
+    font = ImageFont.truetype("comic.ttf", 27)  # Adjust size as needed
 
     # 4) Prepare and send email
     msg = EmailMessage()
@@ -127,11 +168,11 @@ for index, row in df.iterrows():
     msg["To"] = email
     msg.set_content("Please find the attached file.")
 
-    if underline_coords:
+    if underlines:
         # Use the first underline for student name and the second for project name.
-        x1, y1, x2, y2 = underline_coords[0]
-        text_x = x1 - 140
-        text_y = y1 - 70
+        x1, y1, x2, y2 = underlines[0]
+        text_x = x1
+        text_y = y1 - 30
         rect_padding = 5
         # Erase area with white rectangle
         draw.rectangle(
@@ -143,7 +184,20 @@ for index, row in df.iterrows():
             ],
             fill="white"
         )
-
+        xp1, yp1, xp2, yp2 = underlines[1]
+        text_xp = x_center 
+        text_yp = yp1 - 30
+        rect_padding = 5
+        # Erase area with white rectangle
+        draw.rectangle(
+            [
+                x1 - rect_padding,
+                y1 - rect_padding,
+                x2 + rect_padding,
+                y2 + rect_padding
+            ],
+            fill="white"
+        )
         # Build a list of image filenames for each updated image
         Images = []
         for i in range(1, count+1):
@@ -152,7 +206,6 @@ for index, row in df.iterrows():
             image_pil = Image.open(pathofimage).convert("RGB")
             draw = ImageDraw.Draw(image_pil)
             Ima = f"{updateimage}{i}.png"
-            Images.append(Ima)
 
             bbox = draw.textbbox((0, 0), text=Names[i-1], font=font)
             text_width = bbox[2] - bbox[0]
@@ -160,17 +213,19 @@ for index, row in df.iterrows():
 
             # For demonstration, using Name1 for all iterations; update as necessary.
             draw.text((text_x, text_y), Names[i-1], fill="black", font=font)
-            # draw.text((text_xp, text_yp), Project, fill="black", font=font)
-
+            draw.text((text_xp, text_yp), Project, fill="black", font=font)
             # Save updated image under a unique filename
             image_pil.save(Ima)
+            final = addbg(Ima, i)
+            print(final)
+            Images.append(final)
 
         # Attach each updated image to the email
-        for imageupdate in Images:
-            FILE_NAME = os.path.basename(imageupdate)
-            with open(imageupdate, "rb") as file:
+        for updates in Images:
+            FILE_NAME = os.path.basename(updates)
+            with open(updates, "rb") as file:
                 file_data = file.read()
-                file_type = imageupdate.split(".")[-1]
+                file_type = updates.split(".")[-1]
                 maintype = "application" if file_type == "pdf" else "image"
                 subtype = file_type
                 msg.add_attachment(file_data, maintype=maintype, subtype=subtype, filename=FILE_NAME)
@@ -185,7 +240,7 @@ for index, row in df.iterrows():
         print("No underline coordinates available;" )
 
 # ----- OPTIONAL: SHOW DETECTED UNDERLINES -----
-for (x1, y1, x2, y2) in underline_coords:
+for (x1, y1, x2, y2) in underlines:
     cv2.line(image, (x1, y1), (x2, y2), (0, 255, 255), 2)
 plt.figure(figsize=(10, 6))
 plt.imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
