@@ -20,11 +20,8 @@ password = os.getenv("EMAIL_PASSWORD")
 pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 pathofimage = "Certify.png"           # original template
 updateimage = "Imageupdate"         # base name for updated images
-SMTP_PORT = 587  # TLS port
-SMTP_SERVER = "smtp.gmail.com"  # For Gmail
-password = "espxlpmxcycpqqik"
-formlink = "https://docs.google.com/spreadsheets/d/1T7-6zcZ8U4-hKTPn3T9RB7bYyu187TEflmMdnUSIsFs/edit?gid=24612527#gid=24612527"
-API_KEY = "AIzaSyDtTicI-eSbEKFZlJ3QrMLt7XMBNoxheKg"
+SMTP_PORT =  os.getenv('SMTP_PORT') 
+SMTP_SERVER = os.getenv('SMTP_SERVER')# For Gmail
 RANGE_NAME = "Sheet1!A1:G100"
 
 def extract_sheet_id(sheet_url):
@@ -170,7 +167,7 @@ for index, row in df.iterrows():
     # 4) Prepare and send email
     msg = EmailMessage()
     msg["Subject"] = "Here is your attachment"
-    semail = "shrishailya_keskar_it@moderncoe.edu.in"
+    semail = os.getenv('SEMAIL')
     msg["From"] = semail
     msg["To"] = email
     msg.set_content("Please find the attached file.")
@@ -238,11 +235,13 @@ for index, row in df.iterrows():
                 msg.add_attachment(file_data, maintype=maintype, subtype=subtype, filename=FILE_NAME)
         
         # Send email
-        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
-            server.starttls()
-            server.login(semail, password)
-            server.send_message(msg)
-            print(f"Email sent successfully to {email}") 
+        if SMTP_PORT and SMTP_SERVER:
+            with smtplib.SMTP(SMTP_SERVER, int(SMTP_PORT)) as server:
+                server.starttls()
+                if semail and password:
+                    server.login(semail, password=password)
+                server.send_message(msg)
+                print(f"Email sent successfully to {email}") 
     else:
         print("No underline coordinates available;" )
 
