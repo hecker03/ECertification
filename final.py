@@ -9,6 +9,13 @@ from PIL import Image, ImageDraw, ImageFont, ImageTk
 from email.message import EmailMessage
 import numpy as np
 import matplotlib.pyplot as plt
+from dotenv import load_dotenv
+
+load_dotenv()
+
+formlink = os.getenv("FORMLINK")
+API_KEY = os.getenv("API_KEY")
+password = os.getenv("EMAIL_PASSWORD")
 
 pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 pathofimage = "Certify.png"           # original template
