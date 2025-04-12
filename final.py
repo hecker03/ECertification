@@ -22,7 +22,7 @@ pathofimage = "Certify.png"           # original template
 updateimage = "Imageupdate"         # base name for updated images
 SMTP_PORT =  os.getenv('SMTP_PORT') 
 SMTP_SERVER = os.getenv('SMTP_SERVER')# For Gmail
-RANGE_NAME = "Sheet1!A1:G100"
+RANGE_NAME = "Sheet2!A1:L100"
 
 def extract_sheet_id(sheet_url):
     pattern = r"/d/([a-zA-Z0-9-_]+)"
@@ -103,7 +103,7 @@ for i in range(len(detection_data["text"])):
     if "certificate" in text:
         award_text_y = y_center
         print(f"Found 'to' at y-center: {y_center} (text: {text})")
-    elif "position" in text:
+    elif "organized" in text:
         participation_text_y = y_center
         print(f"Found 'the' at y-center: {y_center} (text: {text})")
     # elif "prinicpal" in text:  # replaced "upon" with "course"
@@ -137,12 +137,19 @@ print("Filtered underline coordinates:", underlines)
 try:
     url = f"https://sheets.googleapis.com/v4/spreadsheets/{SHEET_ID}/values/{RANGE_NAME}?key={API_KEY}"
     response = requests.get(url)
+    print(response)
 except Exception as e:
     print("Error fetching data:", e)
     exit()
 
 data = response.json().get("values", [])
-df = pd.DataFrame(data[1:], columns=data[0])
+print(data)
+if len(data) > 1:
+    df = pd.DataFrame(data[1:], columns=data[0])
+else:
+    print("No data found in the Google Sheet.")
+    exit()
+print("Column names:", df.columns)
 
 # ----- EMAIL & DRAWING LOOP -----
 for index, row in df.iterrows():
@@ -152,10 +159,16 @@ for index, row in df.iterrows():
     Name3 = row['Student name 3'].upper()
     Name4 = row['Student name 4'].upper()
     Project = row['Project Name']
+    Rank = row['Rank']  # Assuming you have added a 'Rank' column in your Google Sheet
+    Year = row['Year']
     # print(Name4)
     count = 3
     Names = [Name1, Name2, Name3] 
-    if Name4.isalpha() or Name4 is not None or Name4 != "":
+    if len(Name4.split(",")) == 2:
+        count = 5
+        Names.append(Name4.split(",")[0])
+        Names.append(Name4.split(",")[1])
+    elif Name4.strip() != "":
         count = 4
         Names.append(Name4)
     print(Names)
@@ -166,17 +179,49 @@ for index, row in df.iterrows():
 
     # 4) Prepare and send email
     msg = EmailMessage()
-    msg["Subject"] = "Here is your attachment"
     semail = os.getenv('SEMAIL')
     msg["From"] = semail
     msg["To"] = email
-    msg.set_content("Please find the attached file.")
+    if Year == "SE":
+        if Rank == "1":
+            msg["Subject"] = "Congratulations on 1st Rank!"
+            msg.set_content("Dear Team Leader, \nCongratulations on achieving the 1st rank in the PBL Project Competition. Please find the attached certificates.")
+            pathofimage = "SE1st_rank.png"  # Use a different template for 1st rank
+        elif Rank == "2":
+            msg["Subject"] = "Congratulations on 2nd Rank!"
+            msg.set_content("Dear Team Leader, \nCongratulations on achieving the 2nd rank in the PBL Project Competition. Please find the attached certificates.")
+            pathofimage = "SE2nd_rank.png"  # Use a different template for 2nd rank
+        elif Rank == "3":
+            msg["Subject"] = "Congratulations on 3rd Rank!"
+            msg.set_content("Dear Team Leader, \nCongratulations on achieving the 3rd rank in the PBL Project Competition. Please find the attached certificates.")
+            pathofimage = "SE3rd_rank.png"  # Use a different template for 3rd rank
+        else:
+            msg["Subject"] = "Here is your attachment"
+            msg.set_content("Dear Team Leader,\nAll the members from your team have received E-Certificate on the basis of Participating in the PBL Project Competition. Please find the attached images.")
+            pathofimage = "SEParticipants.png"  # Use the default template for participation
+    elif Year == "FY":
+        if Rank == "1":
+            msg["Subject"] = "Congratulations on 1st Rank!"
+            msg.set_content("Dear Team Leader, \nCongratulations on achieving the 1st rank in the PBL Project Competition. Please find the attached certificates.")
+            pathofimage = "FY1st_rank.png"  # Use a different template for 1st rank
+        elif Rank == "2":
+            msg["Subject"] = "Congratulations on 2nd Rank!"
+            msg.set_content("Dear Team Leader, \nCongratulations on achieving the 2nd rank in the PBL Project Competition. Please find the attached certificates.")
+            pathofimage = "FY2nd_rank.png"  # Use a different template for 2nd rank
+        elif Rank == "3":
+            msg["Subject"] = "Congratulations on 3rd Rank!"
+            msg.set_content("Dear Team Leader, \nCongratulations on achieving the 3rd rank in the PBL Project Competition. Please find the attached certificates.")
+            pathofimage = "FY3rd_rank.png"  # Use a different template for 3rd rank
+        else:
+            msg["Subject"] = "Here is your attachment"
+            msg.set_content("Dear Team Leader, \nAll the members from your team have received E-Certificate on the basis of Participating in the PBL Project Competition. Please find the attached images.")
+            pathofimage = "FYParticipants.png"  # Use the default template for participation
 
     if underlines:
         # Use the first underline for student name and the second for project name.
         x1, y1, x2, y2 = underlines[0]
-        text_x = x1
-        text_y = y1 - 30
+        text_x = x1 + 10
+        text_y = y1 
         rect_padding = 5
         # Erase area with white rectangle
         draw.rectangle(
@@ -189,8 +234,8 @@ for index, row in df.iterrows():
             fill="white"
         )
         xp1, yp1, xp2, yp2 = underlines[1]
-        text_xp = x_center 
-        text_yp = yp1 - 30
+        text_xp = x_center + 150  
+        text_yp = yp1 - 20
         rect_padding = 5
         # Erase area with white rectangle
         draw.rectangle(
@@ -243,7 +288,7 @@ for index, row in df.iterrows():
                 server.send_message(msg)
                 print(f"Email sent successfully to {email}") 
     else:
-        print("No underline coordinates available;" )
+        print("No underline coordinates available;")
 
 # ----- OPTIONAL: SHOW DETECTED UNDERLINES -----
 for (x1, y1, x2, y2) in underlines:
