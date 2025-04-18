@@ -269,24 +269,24 @@ for index, row in df.iterrows():
             print(final)
             Images.append(final)
 
-        # Attach each updated image to the email
-        for updates in Images:
-            FILE_NAME = os.path.basename(updates)
-            with open(updates, "rb") as file:
-                file_data = file.read()
-                file_type = updates.split(".")[-1]
-                maintype = "application" if file_type == "pdf" else "image"
-                subtype = file_type
-                msg.add_attachment(file_data, maintype=maintype, subtype=subtype, filename=FILE_NAME)
+        # # Attach each updated image to the email
+        # for updates in Images:
+        #     FILE_NAME = os.path.basename(updates)
+        #     with open(updates, "rb") as file:
+        #         file_data = file.read()
+        #         file_type = updates.split(".")[-1]
+        #         maintype = "application" if file_type == "pdf" else "image"
+        #         subtype = file_type
+        #         msg.add_attachment(file_data, maintype=maintype, subtype=subtype, filename=FILE_NAME)
         
-        # Send email
-        if SMTP_PORT and SMTP_SERVER:
-            with smtplib.SMTP(SMTP_SERVER, int(SMTP_PORT)) as server:
-                server.starttls()
-                if semail and password:
-                    server.login(semail, password=password)
-                server.send_message(msg)
-                print(f"Email sent successfully to {email}") 
+        # # Send email
+        # if SMTP_PORT and SMTP_SERVER:
+        #     with smtplib.SMTP(SMTP_SERVER, int(SMTP_PORT)) as server:
+        #         server.starttls()
+        #         if semail and password:
+        #             server.login(semail, password=password)
+        #         server.send_message(msg)
+        #         print(f"Email sent successfully to {email}") 
     else:
         print("No underline coordinates available;")
 
