@@ -68,4 +68,11 @@ In many colleges and competitions, participants often receive physical certifica
 ---
 
 ## 📂 Folder Structure
+ecertification-automation/
+├── 📄 generate_certificates.py    # Main Python script for generating and sending certificates
+├── 📄 participants.csv            # CSV file with participant data (exported from Google Sheets)
+├── 🖼️ cert_template.png           # Certificate design template with blank fields for personalization
+├── 📄 sent_log.csv                # Optional: Keeps a log of all sent certificates
+├── 📄 config.py / .env            # (Optional) Stores sensitive info like email credentials
+└── 📄 README.md                   # This file – documentation of the project
 
