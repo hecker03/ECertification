@@ -4,7 +4,7 @@
 
 ![Python](https://img.shields.io/badge/Built%20with-Python-blue?logo=python)
 ![Google Sheets](https://img.shields.io/badge/Google%20Sheets-Integrated-brightgreen?logo=google-sheets)
-![Status](https://img.shields.io/badge/Project-Active-lightgrey)
+![Status](https://img.shields.io/badge/Project-Completed-lightgrey)
 
 ---
 
